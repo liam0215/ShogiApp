@@ -11,7 +11,7 @@ const HomePage = ({ navigation }: { navigation: any }) => {
       />
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('GameScreen')}
+        onPress={() => navigation.navigate('Game')}
       >
         <Text style={styles.buttonText}>Play Game</Text>
       </TouchableOpacity>
