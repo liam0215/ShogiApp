@@ -192,6 +192,53 @@ const GameScreen = () => {
     return true;
   };  
 
+  const canPromote = (
+    fromRow: number,
+    toRow: number,
+    pieceType: string,
+    currentPlayer: '+' | '-'
+  ) => {
+    // Pawns, Knights, and Lances must promote if they enter the furthest rank
+    const mandatoryPromotion = ['P', 'N', 'L'].includes(pieceType) &&
+      ((currentPlayer === '+' && toRow === 8) || (currentPlayer === '-' && toRow === 0));
+  
+    // Silver Generals, Bishops, and Rooks can promote in the promotion zone (last 3 ranks)
+    const optionalPromotion = ['S', 'B', 'R', 'P', 'N', 'L'].includes(pieceType) &&
+      (currentPlayer === '+'
+        ? fromRow >= 6 || toRow >= 6
+        : fromRow <= 2 || toRow <= 2);
+  
+    return mandatoryPromotion || optionalPromotion;
+  };
+
+  const isPromotedBishopMoveValid = (
+    fromRow: number,
+    fromCol: number,
+    toRow: number,
+    toCol: number,
+    board: string[][],
+  ): boolean => {
+    // Check if it moves like a regular Bishop or one square orthogonally
+    return (
+      isBishopMoveValid(fromRow, fromCol, toRow, toCol, board) ||
+      isKingMoveValid(fromRow, fromCol, toRow, toCol)
+    );
+  };
+  
+  const isPromotedRookMoveValid = (
+    fromRow: number,
+    fromCol: number,
+    toRow: number,
+    toCol: number,
+    board: string[][],
+  ): boolean => {
+    // Check if it moves like a regular Rook or one square diagonally
+    return (
+      isRookMoveValid(fromRow, fromCol, toRow, toCol, board) ||
+      isKingMoveValid(fromRow, fromCol, toRow, toCol)
+    );
+  };
+
   const handleSquarePress = (row: number, col: number) => {
     const piece = board[row][col];
   
@@ -213,9 +260,9 @@ const GameScreen = () => {
       const fromRow = selectedPiece.row;
       const fromCol = selectedPiece.col;
       const piece = board[fromRow][fromCol];
-      const pieceType = piece[1];
+      const pieceType = piece[piece.length - 1];
       const currentPlayer = piece[0];
-
+      const promoted = piece.length === 3;
 
       let isMoveValid = false;
       // Check if the move is valid based on the piece type
@@ -244,15 +291,46 @@ const GameScreen = () => {
         case 'L': // Lance
           isMoveValid = isLanceMoveValid(fromRow, fromCol, row, col, board, currentPlayer);
           break;
-        // Add cases for other piece types (N, L)
+      }
+      if(promoted) {
+        switch (pieceType) {
+          case 'P': // Pawn
+          case 'L': // Lance
+          case 'N': // Knight
+          case 'S': // Silver General
+            isMoveValid = isGoldGeneralMoveValid(fromRow, fromCol, row, col, currentPlayer);
+            break;
+          case 'B': // Bishop
+            isMoveValid = isPromotedBishopMoveValid(fromRow, fromCol, row, col, board);
+            break;
+          case 'R': // Rook
+            isMoveValid = isPromotedRookMoveValid(fromRow, fromCol, row, col, board);
+            break;
+        }
       }
 
       // If the move is valid, update the board state
       if (isMoveValid) {
         // Update board state and handle captures/promotions
+        // const newBoard = board.map(row => row.slice());
+        // newBoard[row][col] = board[fromRow][fromCol];
         const newBoard = board.map(row => row.slice());
-        newBoard[row][col] = board[selectedPiece.row][selectedPiece.col];
-        newBoard[selectedPiece.row][selectedPiece.col] = null;
+        newBoard[fromRow][fromCol] = null;
+        // newBoard[row][col] = board[fromRow][fromCol];
+
+        // Check if the piece can be promoted
+        if (canPromote(fromRow, row, pieceType, currentPlayer)) {
+          // Ask the player if they want to promote the piece (if promotion is optional)
+          // For now, let's assume the player always promotes if possible
+          const promotedPiece = pieceType === 'S' ? 'G' : '+' + pieceType;
+
+          // Place the promoted piece on the destination square
+          newBoard[row][col] = currentPlayer + promotedPiece;
+        } else {
+          // Place the original piece on the destination square
+          newBoard[row][col] = board[fromRow][fromCol];
+        }
+
     
         setBoard(newBoard);
         setSelectedPiece(null);
@@ -264,6 +342,7 @@ const GameScreen = () => {
   const renderSquare = (row: number, col: number) => {
     const piece = board[row][col];
     const isSelected = selectedPiece && selectedPiece.row === row && selectedPiece.col === col;
+    const promoted = (piece !== null &&  piece[1] === '+')
 
     return (
       <TouchableOpacity
@@ -274,7 +353,7 @@ const GameScreen = () => {
         ]}
         onPress={() => handleSquarePress(row, col)}
       >
-        {piece && <Text style={styles.piece}>{piece}</Text>}
+        {piece && <Text style={promoted ? styles.promoted : styles.piece}>{promoted ? piece[0] + piece[2] : piece}</Text>}
       </TouchableOpacity>
     );
   };
@@ -345,6 +424,10 @@ const styles = StyleSheet.create({
   selectedSquare: {
     borderColor: '#FFD700',
     borderWidth: 2,
+  },
+  promoted: {
+    fontSize: 24,
+    color: '#E0041B',
   },
   // Add other styles for your game screen components
 });
