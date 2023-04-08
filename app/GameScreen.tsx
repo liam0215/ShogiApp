@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
 const GameScreen = () => {
   // Initialize your board state and other state variables here
@@ -198,18 +198,27 @@ const GameScreen = () => {
     pieceType: string,
     currentPlayer: '+' | '-'
   ) => {
-    // Pawns, Knights, and Lances must promote if they enter the furthest rank
-    const mandatoryPromotion = ['P', 'N', 'L'].includes(pieceType) &&
-      ((currentPlayer === '+' && toRow === 8) || (currentPlayer === '-' && toRow === 0));
-  
     // Silver Generals, Bishops, and Rooks can promote in the promotion zone (last 3 ranks)
     const optionalPromotion = ['S', 'B', 'R', 'P', 'N', 'L'].includes(pieceType) &&
       (currentPlayer === '+'
         ? fromRow >= 6 || toRow >= 6
         : fromRow <= 2 || toRow <= 2);
   
-    return mandatoryPromotion || optionalPromotion;
+    return optionalPromotion;
   };
+
+  const mustPromote = (
+    fromRow: number,
+    toRow: number,
+    pieceType: string,
+    currentPlayer: '+' | '-'
+  ) => {
+    // Pawns, Knights, and Lances must promote if they enter the furthest rank
+    const mandatoryPromotion = ['P', 'N', 'L'].includes(pieceType) &&
+      ((currentPlayer === '+' && toRow === 8) || (currentPlayer === '-' && toRow === 0));
+
+    return mandatoryPromotion;
+  }
 
   const isPromotedBishopMoveValid = (
     fromRow: number,
@@ -239,7 +248,29 @@ const GameScreen = () => {
     );
   };
 
-  const handleSquarePress = (row: number, col: number) => {
+  const showPromotionAlert = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      Alert.alert(
+        'Promote Piece?',
+        'Do you want to promote your piece?',
+        [
+          {
+            text: 'No',
+            onPress: () => resolve(false),
+            style: 'cancel',
+          },
+          {
+            text: 'Yes',
+            onPress: () => resolve(true),
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+  };
+  
+
+  const handleSquarePress = async (row: number, col: number) => {
     const piece = board[row][col];
   
     // Deselect the piece if the same square is clicked again
@@ -319,13 +350,20 @@ const GameScreen = () => {
         // newBoard[row][col] = board[fromRow][fromCol];
 
         // Check if the piece can be promoted
-        if (canPromote(fromRow, row, pieceType, currentPlayer)) {
-          // Ask the player if they want to promote the piece (if promotion is optional)
-          // For now, let's assume the player always promotes if possible
-          const promotedPiece = pieceType === 'S' ? 'G' : '+' + pieceType;
+        if (canPromote(fromRow, row, pieceType, currentPlayer) && !promoted) {
+          // If promotion is optional, ask the user if they want to promote
+          const shouldPromote =
+            mustPromote(fromRow, row, pieceType, currentPlayer) || // Mandatory promotion
+            (await showPromotionAlert()); // Optional promotion
 
-          // Place the promoted piece on the destination square
-          newBoard[row][col] = currentPlayer + promotedPiece;
+          if (shouldPromote) {
+            const promotedPiece = '+' + pieceType;
+
+            // Place the promoted piece on the destination square
+            newBoard[row][col] = currentPlayer + promotedPiece;
+          } else {
+            newBoard[row][col] = board[fromRow][fromCol];
+          }
         } else {
           // Place the original piece on the destination square
           newBoard[row][col] = board[fromRow][fromCol];
