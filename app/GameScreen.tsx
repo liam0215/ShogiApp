@@ -20,6 +20,9 @@ const GameScreen = () => {
   row: number;
   col: number;
   } | null>(null);
+  const [capturedPiecesP1, setCapturedPiecesP1] = useState<string[]>([]);
+  const [capturedPiecesP2, setCapturedPiecesP2] = useState<string[]>([]);
+
 
   const isKingMoveValid = (fromRow: number, fromCol: number, toRow: number, toCol: number) => {
     const rowDiff = Math.abs(fromRow - toRow);
@@ -343,11 +346,19 @@ const GameScreen = () => {
       // If the move is valid, update the board state
       if (isMoveValid) {
         // Update board state and handle captures/promotions
-        // const newBoard = board.map(row => row.slice());
-        // newBoard[row][col] = board[fromRow][fromCol];
+        // Check if there's a piece on the destination square
+        if (board[row][col]) {
+          const capturedPiece = board[row][col];
+          const capturedPieceType = capturedPiece[capturedPiece.length - 1];
+          if (currentPlayer === '+') {
+            setCapturedPiecesP1([...capturedPiecesP1, capturedPieceType]);
+          } else {
+            setCapturedPiecesP2([...capturedPiecesP2, capturedPieceType]);
+          }
+        }
+        
         const newBoard = board.map(row => row.slice());
         newBoard[fromRow][fromCol] = null;
-        // newBoard[row][col] = board[fromRow][fromCol];
 
         // Check if the piece can be promoted
         if (canPromote(fromRow, row, pieceType, currentPlayer) && !promoted) {
@@ -422,7 +433,16 @@ const GameScreen = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Shogi Game</Text>
       {renderBoard()}
-      {/* Render other game elements like captured pieces, player names, etc. */}
+      <View style={styles.capturedPiecesArea}>
+        {capturedPiecesP1.map((piece, index) => (
+          <Text key={index}>{piece}</Text>
+        ))}
+      </View>
+      <View style={styles.capturedPiecesArea}>
+        {capturedPiecesP2.map((piece, index) => (
+          <Text key={index}>{piece}</Text>
+        ))}
+      </View>
     </View>
   );
 };
@@ -466,6 +486,14 @@ const styles = StyleSheet.create({
   promoted: {
     fontSize: 24,
     color: '#E0041B',
+  },
+  capturedPiecesArea: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginVertical: 10,
   },
   // Add other styles for your game screen components
 });
